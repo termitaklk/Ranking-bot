@@ -7,29 +7,28 @@
 - Muestra información detallada sobre el ranking de jugadores en un formato fácil de leer.
 - Detecta automáticamente cambios en el ranking y envía notificaciones a un canal específico.
 - Permite personalizar el intervalo de tiempo para actualizaciones automáticas.
-- **¡Más características increíbles que ofrece tu bot!**
 
 ## Instalación
 
 1. Clona este repositorio en tu máquina local: `git clone https://github.com/termitaklk/Ranking-bot.git`
-2. Navega al directorio del repositorio: `cd turepositorio`
+2. Navega al directorio del repositorio: `cd Ranking-bot`
 3. Instala las dependencias requeridas: `pip install -r requirements.txt`
 4. Crea un archivo `.env` basado en `.env.example` y configura las variables según tus necesidades.
 
 ## Uso
 
 1. Asegúrate de que el bot tenga acceso al servidor de Discord donde deseas utilizarlo.
-2. Ejecuta el bot utilizando `python Bot.py`.
+2. Ejecuta el bot utilizando `python bot.py`.
 3. Invoca los comandos del bot en Discord siguiendo el prefijo definido (por defecto es `!`).
 
 ## Configuración
 
 - Abre el archivo `.env` y configura las siguientes variables:
-  - `TOKEN`: Tu token de bot de Discord.
-  - `URL`: La URL para obtener los datos del ranking.
-  - `CANAL_ID`: El ID del canal donde se enviarán las actualizaciones del ranking.
-  - `CANAL_ID_NOT`: El ID del canal para notificaciones de cambios importantes.
-  - `TIME_EJECUCION`: El intervalo de tiempo en minutos para ejecutar actualizaciones automáticas.
+  - `DISCORD_TOKEN`: Tu token de bot de Discord.
+  - `DISCORD_POST_CHANNEL_ID`: El ID del canal donde se enviarán las actualizaciones del ranking.
+  - `DISCORD_CONGRATS_CHANNEL_ID`: El ID del canal para notificaciones de cambios importantes.
+  - `API_URL`: La URL para obtener los datos del ranking.
+  - `TIME_EXECUTION`: El intervalo de tiempo en minutos para ejecutar actualizaciones automáticas.
 
 ## Contribución
 
@@ -42,7 +41,7 @@
 
 ## Créditos
 
-Este bot ha sido desarrollado por [Juan M.](enlace a tu perfil de GitHub).
+Este bot ha sido desarrollado por [Juan M.](https://github.com/termitaklk).
 
 ## Licencia
 

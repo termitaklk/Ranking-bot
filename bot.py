@@ -8,11 +8,11 @@ from dotenv import load_dotenv
 from discord.ext import commands
 
 load_dotenv()
-TOKEN = os.getenv("TOKEN")
-URL = os.getenv("URL")
-CANAL_ID = os.getenv("CANAL_ID")
-CANAL_ID_NOT = os.getenv("CANAL_ID_NOT")
-TIME_EJECUCION = int(os.getenv("TIME_EJECUCION"))
+DISCORD_TOKEN=os.getenv("DISCORD_TOKEN")
+DISCORD_POST_CHANNEL_ID=os.getenv("DISCORD_POST_CHANNEL_ID")
+DISCORD_CONGRATS_CHANNEL_ID=os.getenv("DISCORD_CONGRATS_CHANNEL_ID")
+API_URL=os.getenv("API_URL")
+TIME_EXECUTION=int(os.getenv("TIME_EXECUTION"))
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -20,7 +20,7 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 def obtener_info_tabla():
     try:
-        respuesta = requests.get(URL)
+        respuesta = requests.get(API_URL)
         data = respuesta.json()
 
         leaderboard_info = "" * 5
@@ -70,9 +70,9 @@ ultima_ejecucion = None
 async def enviar_info_al_canal(info):
     global info_message
 
-    canal = bot.get_channel(int(CANAL_ID))
+    canal = bot.get_channel(int(DISCORD_POST_CHANNEL_ID))
     if not canal:
-        print(f"No se pudo encontrar el canal con el ID {CANAL_ID}.")
+        print(f"No se pudo encontrar el canal con el ID {DISCORD_POST_CHANNEL_ID}.")
         return
 
     embed = discord.Embed(title="Ranking Evolution!!", description=info, color=0x000000)  # Color negro
@@ -92,7 +92,7 @@ def ejecutar_tarea():
     info_tabla = obtener_info_tabla()
     asyncio.ensure_future(enviar_info_al_canal(info_tabla))
 
-schedule.every(TIME_EJECUCION).minutes.do(ejecutar_tarea)
+schedule.every(TIME_EXECUTION).minutes.do(ejecutar_tarea)
 
 async def imprimir_tiempo_restante():
     while True:
@@ -117,7 +117,7 @@ async def on_ready():
         print(f"Error en on_ready: {e}")
 
 loop = asyncio.get_event_loop()
-loop.create_task(bot.start(TOKEN))
+loop.create_task(bot.start(DISCORD_TOKEN))
 loop.create_task(ejecutar_programa())
 
 try:
