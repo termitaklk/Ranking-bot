@@ -1,140 +1,143 @@
 import discord
 import requests
-import json
 import asyncio
+import schedule
+import datetime
+import os
+from dotenv import load_dotenv
+from discord.ext import commands
 
-# Token del bot de Discord
-TOKEN = "MTEzOTk4NjU5NTY0NzMyODI2OA.GMXNeN.C0zPgmRXJDoYQaTb7TB_kYGVMujZJgaLur6SX4"
+load_dotenv()
+TOKEN = os.getenv("TOKEN")
+URL = os.getenv("URL")
+CANAL_ID = os.getenv("CANAL_ID")
+CANAL_ID_NOT = os.getenv("CANAL_ID_NOT")
+TIME_EJECUCION = int(os.getenv("TIME_EJECUCION"))
 
-# URL a la que se realizará la petición GET
-URL = "https://evolutionygo.com/api/leaderboard"
-
-# ID del canal donde se enviará la información del Ranking
-CANAL_ID = "1138104595315433603"
-
-# ID del canal donde se enviará el mensaje cuando un Jugador suba 2 posiciones o mas.
-CANAL_SUBIDA_ID = "1138104595315433603"
-
-# Intents Requeridos en Discord.
 intents = discord.Intents.default()
 intents.message_content = True
+bot = commands.Bot(command_prefix='!', intents=intents)
 
-# Crear una instancia del cliente de Discord con los intents
-cliente = discord.Client(intents=intents)
-
-# Variable para guardar el mensaje enviado al canal
-mensaje_en_canal = None
-
-# Diccionario para almacenar la última posición de cada jugador
-ultima_info_tabla = {}
-
-
-# Función para obtener la información de la tabla de clasificación
 def obtener_info_tabla():
     try:
-        # Realizar la petición GET a la URL
         respuesta = requests.get(URL)
         data = respuesta.json()
 
-        leaderboard_info = f"Position | Username | Points\n```md\n"
-        jugadores_actuales = {}
+        leaderboard_info = "" * 5
+        leaderboard_info += f"{'Position':<10}{'Player':<14}{'Score':<8}{'🔼  🔽 '}\n"
+        leaderboard_info += "" * 5 + "\n"
 
-        for i, item in enumerate(data):
-            if i >= 20:
-                break
+        if isinstance(data, dict) and "data" in data:
+            data_list = data["data"]
+            for item in data_list:
+                if isinstance(item, dict):
+                    player = f"{item.get('value', 'Desconocido')}"
+                    position = str(item.get("position", "Desconocida")).center(8)
+                    score = str(item.get("score", 0)).center(10)
+                    difference_value = item.get('difference', 0)
+                    
+                    if difference_value > 0:
+                        difference = f"🔼 ({difference_value})  ".center(6)
 
-            player = item["value"]
-            score = item["score"]
-            jugadores_actuales[player] = i + 1
 
-            cambio = ""
-            posicion_anterior = ultima_info_tabla.get(player)
-            if posicion_anterior is not None:
-                diferencia_posicion = posicion_anterior - (i + 1)
-                if diferencia_posicion > 0:
-                    cambio = f"⬆️ (+{diferencia_posicion})"  # Jugador subió
-                    # Si el jugador sube dos o más posiciones, enviar mensaje al canal especificado
-                    if diferencia_posicion >= 2:
-                        asyncio.create_task(
-                            enviar_mensaje_subida(player, diferencia_posicion)
-                        )
-                elif diferencia_posicion < 0:
-                    cambio = f"⬇️ (-{abs(diferencia_posicion)})"  # Jugador bajó
-                ultima_info_tabla[player] = i + 1
+                    elif difference_value < 0:
+                        difference = f"🔻 ({difference_value}) ".center(6)
 
-            leaderboard_info += f"{i+1} | {player} | {score} {cambio}\n"
+                    else:
+                        difference = "❓".center(8)
 
-        leaderboard_info += "```"
+                    leaderboard_info += f"{position:<9}{player:<13}{score:<10}{difference}\n"
 
-        return leaderboard_info, jugadores_actuales
+            leaderboard_info += "" * 10
+
+            if ultima_ejecucion:
+                ultima_ejecucion_str = ultima_ejecucion.strftime("%Y-%m-%d %H:%M:%S")
+                last_updated = f"Last updated on: {ultima_ejecucion_str}"
+                centralizado = last_updated.center(40)
+                leaderboard_info += f"{centralizado}\n"
+
+            return "`" + leaderboard_info + "`"
 
     except Exception as e:
         print(f"Error al obtener la información: {e}")
-        return None, {}
+        return None
 
 
-# Función para enviar el mensaje al canal cuando un jugador sube dos o más posiciones
-async def enviar_mensaje_subida(player, diferencia_posicion):
-    canal_subida = cliente.get_channel(int(CANAL_SUBIDA_ID))
-    if canal_subida:
-        await canal_subida.send(
-            f"¡{player} subió {diferencia_posicion} posiciones en la clasificación del Ranking!"
-        )
 
+info_message = None
+ultima_ejecucion = None
 
-# Función para enviar o actualizar la información de la tabla de clasificación en el canal
 async def enviar_info_al_canal(info):
-    global mensaje_en_canal
-    canal = cliente.get_channel(int(CANAL_ID))
-    if canal is None:
-        print(
-            f"No se pudo encontrar el canal con el ID {CANAL_ID}. Verifica que el bot tenga acceso al canal y el ID sea correcto."
-        )
+    global info_message
+
+    canal = bot.get_channel(int(CANAL_ID))
+    if not canal:
+        print(f"No se pudo encontrar el canal con el ID {CANAL_ID}.")
         return
 
-    if mensaje_en_canal:
-        await mensaje_en_canal.edit(
-            content=info
-        )  # Actualizar el mensaje existente en el canal
+    embed = discord.Embed(title="Ranking Evolution!!", description=info, color=0x000000)  # Color negro
+
+    if not info_message:
+        info_message = await canal.send(embed=embed)
     else:
-        mensaje_en_canal = await canal.send(info)  # Enviar un nuevo mensaje al canal
+        await info_message.edit(embed=embed)
+
+    print(info)
 
 
-# Evento que se ejecuta cuando el bot se conecta correctamente
-@cliente.event
-async def on_ready():
-    print(f"Conectado como {cliente.user.name}")
-    await verificar_info_tabla()  # Cargar y enviar la información de la tabla de clasificación al inicio
 
+def ejecutar_tarea():
+    global ultima_ejecucion
+    ultima_ejecucion = datetime.datetime.now()
+    info_tabla = obtener_info_tabla()
+    asyncio.ensure_future(enviar_info_al_canal(info_tabla))
 
-# Función para verificar la tabla de clasificación y enviarla al canal
-async def verificar_info_tabla():
-    global ultima_info_tabla
+schedule.every(TIME_EJECUCION).minutes.do(ejecutar_tarea)
+
+async def imprimir_tiempo_restante():
     while True:
-        info_tabla, nuevas_posiciones = obtener_info_tabla()
+        next_run = schedule.next_run()
+        tiempo_restante = next_run - datetime.datetime.now()
+        ultima_ejecucion_str = ultima_ejecucion.strftime("%Y-%m-%d %H:%M:%S") if ultima_ejecucion else "N/A"
+        print(f"Próxima ejecución en: {tiempo_restante}, Última ejecución: {ultima_ejecucion_str}")
+        await asyncio.sleep(60)
 
-        # Imprimir la clasificación actual
-        print("Clasificación actual:")
-        print(info_tabla)
+async def ejecutar_programa():
+    loop.create_task(imprimir_tiempo_restante())
+    while True:
+        schedule.run_pending()
+        await asyncio.sleep(1)
 
-        # Si hay cambios en la clasificación, enviar la información al canal
-        if ultima_info_tabla != info_tabla:
-        # if nuevas_posiciones:
-            ultima_info_tabla = nuevas_posiciones.copy()
-            await enviar_info_al_canal(info_tabla)
-        await asyncio.sleep(600)  # Esperar 10 minutos
+@bot.event
+async def on_ready():
+    try:
+        print(f"Conectado como {bot.user.name}")
+        await enviar_info_al_canal(obtener_info_tabla())
+    except Exception as e:
+        print(f"Error en on_ready: {e}")
+
+loop = asyncio.get_event_loop()
+loop.create_task(bot.start(TOKEN))
+loop.create_task(ejecutar_programa())
+
+try:
+    loop.run_forever()
+except KeyboardInterrupt:
+    loop.run_until_complete(bot.close())
+finally:
+    loop.close()
 
 
-# Comando para realizar la petición GET y mostrar la información en el canal específico
-@cliente.event
-async def on_message(mensaje):
-    if mensaje.content.startswith("!obtener_info"):
-        try:
-            info_tabla, _ = obtener_info_tabla()
-            await enviar_info_al_canal(info_tabla)
-        except Exception as e:
-            await mensaje.channel.send(f"Error al enviar la información: {e}")
 
 
-# Ejecutar el bot
-cliente.run(TOKEN)
+
+
+
+
+
+
+
+
+
+
+
