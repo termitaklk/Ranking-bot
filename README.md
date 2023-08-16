@@ -42,7 +42,7 @@
 
 ## Créditos
 
-Este bot ha sido desarrollado por [Juan M.](enlace a tu perfil de GitHub).
+Este bot ha sido desarrollado por [Juan M.](https://github.com/termitaklk).
 
 ## Licencia
 
